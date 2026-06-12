@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Ledger Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎮 재화 관리 대시보드</h1>
+
+        <div class="card">
+            <button id="fileInput">📁 파일 불러오기</button>
+            <button id="exportBtn" style="background: #10b981; margin-left: 10px;">💾 데이터 내보내기</button>
+            <span id="fileNameDisplay" style="margin-left: 10px; font-weight: bold;"></span>
+        </div>
+
+        <div class="card">
+            <select id="category">
+                <option value="메소">메소</option>
+                <option value="조각">조각</option>
+            </select>
+            <input type="number" id="amount" placeholder="수량 입력">
+            <button id="addBtn">기록 추가</button>
+        </div>
+
+        <div class="card total-box">
+            <h3>📈 수익 관리 (환산 적용)</h3>
+            <p>총 보유량: 메소 <span id="totalMeso">0</span> / 조각 <span id="totalZogak">0</span></p>
+            <input type="number" id="pricePerZogak" placeholder="현재 조각당 메소 가격" style="color: #1e293b;">
+            <button id="calcBtn" style="background: white; color: #6366f1;">조각값 적용하기</button>
+            <h2 style="margin:15px 0 0 0">통합 예상 수익: <span id="totalProfit">0</span> 메소</h2>
+        </div>
+
+        <div class="card">
+            <h3>기록 목록</h3>
+            <table id="recordTable">
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>항목</th>
+                        <th>금액</th>
+                    </tr>
+                </thead>
+                <tbody id="recordBody"></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>기간별 분석</h3>
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 10px;">
+                <select id="periodFilter">
+                    <option value="7">1주일</option>
+                    <option value="30">1개월</option>
+                    <option value="90">3개월</option>
+                </select>
+
+                <button id="showGraphBtn">그래프 갱신</button>
+
+                <div class="toggle-wrapper">
+                    <span style="font-weight: bold; margin-right: 5px;">조각값 계산</span>
+                    <label class="switch">
+                        <input type="checkbox" id="useZogakCalc">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="chart-container"><canvas id="myChart"></canvas></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

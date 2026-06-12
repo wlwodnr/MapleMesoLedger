@@ -1,0 +1,154 @@
+:root {
+    --primary: #6366f1;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+}
+
+.container {
+    max-width: 850px;
+    margin: auto;
+}
+
+.card {
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+select,
+input {
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    margin-right: 5px;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #4f46e5;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th,
+td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px;
+    text-align: left;
+}
+
+.chart-container {
+    position: relative;
+    height: 350px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+/* 아름다운 그라데이션 박스 보존 */
+.total-box {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+}
+
+/* 가로 정렬 래퍼 */
+.toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 텍스트 겹침 현상을 완벽 차단한 70px 대형 토글 스위치 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 70px;
+    height: 35px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 35px;
+}
+
+/* 슬라이더 내부 글자 삽입 스타일 */
+.slider::after {
+    content: "미포함";
+    position: absolute;
+    right: 8px;
+    top: 9px;
+    font-size: 10px;
+    color: white;
+    font-weight: bold;
+}
+
+input:checked+.slider::after {
+    content: "포함";
+    left: 12px;
+    right: auto;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked+.slider {
+    background-color: var(--primary);
+}
+
+input:checked+.slider:before {
+    transform: translateX(35px);
+}
+
+@media (max-width: 600px) {
+
+    select,
+    input {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}

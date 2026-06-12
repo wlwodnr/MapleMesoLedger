@@ -1,0 +1,9 @@
+# 로컬에서 테스트용으로 쓸 데이터 파일 제외
+*.json
+!sample.json # 만약 예시 데이터 파일을 올리고 싶다면 제외
+
+# 운영체제 및 IDE 설정 파일 제외
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
