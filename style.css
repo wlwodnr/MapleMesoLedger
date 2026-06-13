@@ -68,20 +68,17 @@ td {
     margin-top: 20px;
 }
 
-/* 아름다운 그라데이션 박스 보존 */
 .total-box {
     background: linear-gradient(135deg, #6366f1, #a855f7);
     color: white;
 }
 
-/* 가로 정렬 래퍼 */
 .toggle-wrapper {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-/* 텍스트 겹침 현상을 완벽 차단한 70px 대형 토글 스위치 */
 .switch {
     position: relative;
     display: inline-block;
@@ -107,7 +104,6 @@ td {
     border-radius: 35px;
 }
 
-/* 슬라이더 내부 글자 삽입 스타일 */
 .slider::after {
     content: "미포함";
     position: absolute;
@@ -142,6 +138,39 @@ input:checked+.slider {
 
 input:checked+.slider:before {
     transform: translateX(35px);
+}
+
+/* 수정, 삭제 인라인 소형 버튼 스타일 */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    margin-right: 3px;
+}
+
+.btn-edit {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.btn-delete {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-cancel {
+    background-color: #64748b;
+    color: white;
+}
+
+/* 테이블 인라인 편집창 스타일 */
+.table-input {
+    width: 90%;
+    padding: 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
 @media (max-width: 600px) {

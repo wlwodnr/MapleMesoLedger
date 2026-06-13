@@ -1,6 +1,7 @@
 let data = [];
 let fileHandle;
 let myChart;
+let editIndex = -1; // 현재 인라인 편집 중인 행의 인덱스 추적 (-1은 편집 중 아님)
 
 // 1. 파일 불러오기 및 실시간 자동 렌더링
 document.getElementById('fileInput').addEventListener('click', async () => {
@@ -12,14 +13,15 @@ document.getElementById('fileInput').addEventListener('click', async () => {
         data = JSON.parse(await file.text());
         document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name}`;
 
+        editIndex = -1; // 새 파일 로드 시 편집 상태 초기화
         renderTable();
-        updateGraph(); // 로드 즉시 그래프 자동 생성
+        updateGraph();
     } catch (err) {
         console.error("파일 로드 취소 또는 오류:", err);
     }
 });
 
-// 2. 내보내기 기능 (지정한 파일명 반영)
+// 2. 내보내기 기능
 document.getElementById('exportBtn').addEventListener('click', () => {
     if (data.length === 0) return alert("내보낼 데이터가 없습니다.");
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -31,7 +33,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-// 3. 기록 추가 (추가 시 그래프 및 수치 자동 업데이트)
+// 3. 기록 추가
 document.getElementById('addBtn').addEventListener('click', async () => {
     if (!fileHandle) return alert("먼저 '파일 불러오기'를 진행해주세요!");
     const category = document.getElementById('category').value;
@@ -46,7 +48,7 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     });
 
     renderTable();
-    updateGraph(); // 기록 추가 즉시 반영
+    updateGraph();
     await saveFile();
 });
 
@@ -64,7 +66,7 @@ async function saveFile() {
 // 5. 상단 대시보드 조각값 적용 및 연동 버튼
 document.getElementById('calcBtn').addEventListener('click', () => {
     calculateTotalProfit();
-    updateGraph(); // 가치 환산 금액 적용 후 그래프 동시 업데이트
+    updateGraph();
 });
 
 // 6. 입력값 변경 및 토글 작동 시 실시간 그래프 리액션 등록
@@ -73,7 +75,51 @@ document.getElementById('pricePerZogak').addEventListener('input', updateGraph);
 document.getElementById('showGraphBtn').addEventListener('click', updateGraph);
 document.getElementById('periodFilter').addEventListener('change', updateGraph);
 
-// 7. 핵심 이중 Y축 멀티 렌더링 및 토글 제어 로직 (날짜 버그 수정 버전)
+// 7. 인라인 수정/삭제 핸들러 함수군
+function startEdit(index) {
+    editIndex = index;
+    renderTable(); // 편집 상태 레이아웃 적용을 위한 재렌더링
+}
+
+function cancelEdit() {
+    editIndex = -1;
+    renderTable();
+}
+
+async function saveEdit(index) {
+    const editCategory = document.getElementById(`editCategory_${index}`).value;
+    const editAmount = Number(document.getElementById(`editAmount_${index}`).value);
+
+    if (isNaN(editAmount) || editAmount <= 0) {
+        alert("올바른 수량을 입력해 주세요.");
+        return;
+    }
+
+    // 데이터 복사본 배열 갱신
+    data[index].category = editCategory;
+    data[index].amount = editAmount;
+
+    editIndex = -1;
+    renderTable();
+    updateGraph();
+    await saveFile(); // 디스크 원본 파일에 실시간 반영
+}
+
+async function deleteItem(index) {
+    if (!confirm("정말로 이 기록을 삭제하시겠습니까?")) return;
+
+    data.splice(index, 1);
+
+    // 편집 추적용 인덱스 방어 코드
+    if (editIndex === index) editIndex = -1;
+    else if (editIndex > index) editIndex--;
+
+    renderTable();
+    updateGraph();
+    await saveFile();
+}
+
+// 8. 핵심 이중 Y축 멀티 렌더링 및 토글 제어 로직 (날짜 버그 보완본)
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -82,44 +128,34 @@ function updateGraph() {
     const step = days === 7 ? 1 : (days === 30 ? 3 : 6);
     const labels = [], mesoValues = [], zogakValues = [];
 
-    // 오늘 날짜의 자정(00:00:00) 기준으로 설정하여 시차 오차 방지
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 기간에 맞게 루프 돌며 데이터 바구니 생성
     for (let i = days; i >= 0; i -= step) {
-        // 시작일과 종료일 계산
         let startDate = new Date(today);
         startDate.setDate(today.getDate() - i);
 
         let endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + step);
 
-        // 그래프 축에 표시할 이름 (X축 라벨 생성)
         labels.push(startDate.toLocaleDateString().slice(5));
 
-        // 해당 범위에 포함되는 기록들 필터링
         const filtered = data.filter(item => {
-            // item.date 문자열의 마침표와 공백을 정리하여 정확한 Date 객체 생성
-            const itemDateStr = item.date.replace(/\s/g, ''); // 공백 제거
+            const itemDateStr = item.date.replace(/\s/g, '');
             const itemDate = new Date(itemDateStr);
             itemDate.setHours(0, 0, 0, 0);
-
-            // 시작일 이상, 종료일 미만 조건 만족 시 포함
             return itemDate >= startDate && itemDate < endDate;
         });
 
         const dailyMeso = filtered.filter(item => item.category === '메소').reduce((sum, item) => sum + item.amount, 0);
         const dailyZogak = filtered.filter(item => item.category === '조각').reduce((sum, item) => sum + item.amount, 0);
 
-        // [토글 ON] 일때는 조각 가치를 메소 막대에 더하고, [토글 OFF] 일때는 순수 메소만 할당
         mesoValues.push(useCalc ? dailyMeso + (dailyZogak * pricePerZogak) : dailyMeso);
         zogakValues.push(dailyZogak);
     }
 
     if (myChart) myChart.destroy();
 
-    // 토글 스위치 켜짐 유무에 따른 동적 데이터셋 빌드 생성
     const datasets = [
         {
             label: useCalc ? '통합 예상 수익 (메소)' : '순수 메소 수익',
@@ -130,7 +166,6 @@ function updateGraph() {
         }
     ];
 
-    // 토글 미포함(OFF) 상태일 때만 우측 축을 쓰는 '조각 막대'를 배열에 추가
     if (!useCalc) {
         datasets.push({
             label: '순수 조각 수량',
@@ -158,9 +193,9 @@ function updateGraph() {
                 yZogak: {
                     type: 'linear',
                     position: 'right',
-                    display: !useCalc, // 토글 통합 모드일 때는 우측 조각 축 자체를 숨김
+                    display: !useCalc,
                     title: { display: true, text: '조각 개수 (개)' },
-                    grid: { drawOnChartArea: false }, // 격자선 겹침 방지
+                    grid: { drawOnChartArea: false },
                     ticks: { stepSize: 1 }
                 }
             }
@@ -168,11 +203,42 @@ function updateGraph() {
     });
 }
 
-// 8. 기본 데이터 수량 갱신 및 가계부 출력
+// 9. 기본 데이터 수량 갱신 및 가계부 출력 (인라인 폼 조건 분기 포함)
 function renderTable() {
-    document.getElementById('recordBody').innerHTML = data.map(item => `
-        <tr><td>${item.date}</td><td>${item.category}</td><td>${item.amount.toLocaleString()}</td></tr>
-    `).join('');
+    document.getElementById('recordBody').innerHTML = data.map((item, index) => {
+        if (editIndex === index) {
+            return `
+                <tr>
+                    <td>${item.date}</td>
+                    <td>
+                        <select id="editCategory_${index}" class="table-input">
+                            <option value="메소" ${item.category === '메소' ? 'selected' : ''}>메소</option>
+                            <option value="조각" ${item.category === '조각' ? 'selected' : ''}>조각</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" id="editAmount_${index}" value="${item.amount}" class="table-input">
+                    </td>
+                    <td>
+                        <button onclick="saveEdit(${index})" class="btn-sm btn-edit">저장</button>
+                        <button onclick="cancelEdit()" class="btn-sm btn-cancel">취소</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        return `
+            <tr>
+                <td>${item.date}</td>
+                <td>${item.category}</td>
+                <td>${item.amount.toLocaleString()}</td>
+                <td>
+                    <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
+                    <button onclick="deleteItem(${index})" class="btn-sm btn-delete">❌ 삭제</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 
     const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + i.amount, 0);
     const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + i.amount, 0);
