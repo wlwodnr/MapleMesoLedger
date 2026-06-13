@@ -60,6 +60,23 @@ td {
     border-bottom: 1px solid #e2e8f0;
     padding: 12px;
     text-align: left;
+    vertical-align: middle;
+}
+
+/* [새로 구현] 아이콘 전용 독립 칸 정렬 스타일 */
+.icon-cell {
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+    width: 40px;
+}
+
+.ledger-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .chart-container {
@@ -141,9 +158,7 @@ input:checked+.slider:before {
     transform: translateX(35px);
 }
 
-/* ==========================================================================
-   [보정 완료] 테이블 내 수정, 삭제 인라인 소형 버튼 스타일
-   ========================================================================== */
+/* 테이블 내 수정, 삭제 인라인 소형 버튼 스타일 */
 button.btn-sm {
     padding: 6px 12px !important;
     font-size: 12px !important;
@@ -151,25 +166,21 @@ button.btn-sm {
     font-weight: 500 !important;
     margin-right: 3px !important;
     width: auto !important;
-    /* 가로로 늘어나는 현상 차단 */
     height: auto !important;
 }
 
 button.btn-edit {
     background-color: #f59e0b !important;
-    /* 주황색 고정 */
     color: white !important;
 }
 
 button.btn-delete {
     background-color: #ef4444 !important;
-    /* 빨간색 고정 */
     color: white !important;
 }
 
 button.btn-cancel {
     background-color: #64748b !important;
-    /* 회색 고정 */
     color: white !important;
 }
 

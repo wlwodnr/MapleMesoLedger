@@ -78,7 +78,7 @@ document.getElementById('periodFilter').addEventListener('change', updateGraph);
 // 7. 인라인 수정/삭제 핸들러 함수군
 function startEdit(index) {
     editIndex = index;
-    renderTable(); // 편집 상태 레이아웃 적용을 위한 재렌더링
+    renderTable();
 }
 
 function cancelEdit() {
@@ -95,14 +95,13 @@ async function saveEdit(index) {
         return;
     }
 
-    // 데이터 복사본 배열 갱신
     data[index].category = editCategory;
     data[index].amount = editAmount;
 
     editIndex = -1;
     renderTable();
     updateGraph();
-    await saveFile(); // 디스크 원본 파일에 실시간 반영
+    await saveFile();
 }
 
 async function deleteItem(index) {
@@ -110,7 +109,6 @@ async function deleteItem(index) {
 
     data.splice(index, 1);
 
-    // 편집 추적용 인덱스 방어 코드
     if (editIndex === index) editIndex = -1;
     else if (editIndex > index) editIndex--;
 
@@ -119,7 +117,7 @@ async function deleteItem(index) {
     await saveFile();
 }
 
-// 8. 핵심 이중 Y축 멀티 렌더링 및 토글 제어 로직 (날짜 버그 보완본)
+// 8. 그래프 제어 로직
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -203,14 +201,18 @@ function updateGraph() {
     });
 }
 
-// 9. 기본 데이터 수량 갱신 및 가계부 출력 (인라인 폼 조건 분기 포함)
+// 9. 기록 테이블 렌더링 (독립형 5열 구조 개편 파트)
 function renderTable() {
     document.getElementById('recordBody').innerHTML = data.map((item, index) => {
+        const iconPath = item.category === '메소' ? 'IconImage/Meso.png' : 'IconImage/Pice of Erda.png';
+        const imgTag = `<img src="${iconPath}" class="ledger-icon" alt="${item.category}">`;
+
+        // 인라인 수정 모드 레이아웃 (5칸 정렬 유지)
         if (editIndex === index) {
             return `
                 <tr>
                     <td>${item.date}</td>
-                    <td>
+                    <td class="icon-cell"></td> <td>
                         <select id="editCategory_${index}" class="table-input">
                             <option value="메소" ${item.category === '메소' ? 'selected' : ''}>메소</option>
                             <option value="조각" ${item.category === '조각' ? 'selected' : ''}>조각</option>
@@ -227,10 +229,11 @@ function renderTable() {
             `;
         }
 
+        // 일반 출력 레이아웃 (아이콘 전용 td 열 삽입)
         return `
             <tr>
                 <td>${item.date}</td>
-                <td>${item.category}</td>
+                <td class="icon-cell">${imgTag}</td> <td>${item.category}</td>
                 <td>${item.amount.toLocaleString()}</td>
                 <td>
                     <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
