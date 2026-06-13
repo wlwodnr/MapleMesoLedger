@@ -4,7 +4,7 @@ let myChart;
 let editIndex = -1;
 
 // ==========================================
-// [신규] GitHub Pages용 순수 브라우저 내장 IndexedDB 최소화 모듈
+// GitHub Pages용 순수 브라우저 내장 IndexedDB 최소화 모듈
 // ==========================================
 const DB_NAME = 'MapleLedgerDB';
 const STORE_NAME = 'FileHandles';
@@ -58,18 +58,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (handle) {
             fileHandle = handle;
             document.getElementById('fileNameDisplay').innerText = `연동 파일: ${handle.name} (새로고침됨)`;
-            document.getElementById('verifyBtn').style.display = 'inline-block'; // 권한 승인 버튼 활성화
+            document.getElementById('verifyBtn').style.display = 'inline-block';
         }
     } catch (err) {
         console.error("기존 파일 핸들 복원 실패:", err);
     }
 });
 
-// [신규] ⚠️ 권한 승인하기 버튼 이벤트 처리
+// ⚠️ 권한 승인하기 버튼 이벤트 처리
 document.getElementById('verifyBtn').addEventListener('click', async () => {
     if (!fileHandle) return;
 
-    // 브라우저 보안 팝업을 강제 호출하여 파일 수정 쓰기 권한 요청
     const opts = { mode: 'readwrite' };
     if ((await fileHandle.queryPermission(opts)) === 'granted') {
         alert("이미 권한이 승인되어 있습니다.");
@@ -77,18 +76,22 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
         return;
     }
 
-    if ((await fileHandle.requestPermission(opts)) === 'granted') {
-        document.getElementById('fileNameDisplay').innerText = `현재 파일: ${fileHandle.name} (실시간 동기화 활성화됨)`;
-        document.getElementById('verifyBtn').style.display = 'none';
+    try {
+        if ((await fileHandle.requestPermission(opts)) === 'granted') {
+            document.getElementById('fileNameDisplay').innerText = `현재 파일: ${fileHandle.name} (실시간 동기화 활성화됨)`;
+            document.getElementById('verifyBtn').style.display = 'none';
 
-        // 최신 내용 동기화 읽기
-        const file = await fileHandle.getFile();
-        data = JSON.parse(await file.text());
-        localStorage.setItem('maple_ledger_data', JSON.stringify(data));
-        renderTable();
-        updateGraph();
-    } else {
-        alert("권한이 거부되면 실시간 수정 사항이 원본 파일에 자동으로 쓰여지지 않습니다.");
+            const file = await fileHandle.getFile();
+            data = JSON.parse(await file.text());
+            localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+            renderTable();
+            updateGraph();
+        } else {
+            alert("권한이 거부되면 실시간 수정 사항이 원본 파일에 자동으로 쓰여지지 않습니다.");
+        }
+    } catch (err) {
+        alert("권한 승인 도중 오류가 발생했습니다. 파일을 다시 불러와주세요.");
+        console.error(err);
     }
 });
 
@@ -103,7 +106,6 @@ document.getElementById('fileInput').addEventListener('click', async () => {
         document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
         document.getElementById('verifyBtn').style.display = 'none';
 
-        // 데이터와 파일 객체를 각각 브라우저 저장소에 분할 안전 백업
         localStorage.setItem('maple_ledger_data', JSON.stringify(data));
         await setHandle('current_handle', fileHandle);
 
@@ -145,12 +147,12 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     await saveFile();
 });
 
-// 4. 파일 실시간 덮어쓰기 및 로컬 스토리지 동시 백업
+// 4. 파일 실시간 덮어쓰기 저장
 async function saveFile() {
     localStorage.setItem('maple_ledger_data', JSON.stringify(data));
 
     if (!fileHandle) {
-        console.log("자동 복원 모드 작동 중: 원본 .json 파일 반영을 원하시면 최초 1회 [파일 불러오기/드롭] 혹은 [권한 승인]을 해주세요.");
+        console.log("자동 복원 모드 작동 중");
         return;
     }
     try {
@@ -159,7 +161,7 @@ async function saveFile() {
         await writable.close();
         console.log("원본 파일에 실시간 반영 완료!");
     } catch (err) {
-        console.error("실시간 오버라이트 실패 (권한 재인증 필요):", err);
+        console.error("실시간 오버라이트 실패:", err);
         document.getElementById('verifyBtn').style.display = 'inline-block';
     }
 }
@@ -362,57 +364,89 @@ function calculateTotalProfit() {
     document.getElementById('totalProfit').innerText = totalProfit.toLocaleString();
 }
 
-// 10. 드래그 앤 드롭 파일 탐지 로직 (IDB 연동 완료)
+// ==========================================
+// 10. [버그 완전 해결] 드래그 앤 드롭 글로벌 가로채기 방지 리스너
+// ==========================================
 const dropZone = document.getElementById('dropZone');
 
-window.addEventListener('dragover', (e) => {
+// [핵심 보정] document 단위로 버블링되는 드래그 이벤트를 완전히 정지하여 안내 창 차단 버그 제거
+document.addEventListener('dragenter', (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    dropZone.style.display = 'flex';
+});
+
+document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     dropZone.style.display = 'flex';
 });
 
 dropZone.addEventListener('dragleave', (e) => {
     e.preventDefault();
-    dropZone.style.display = 'none';
+    e.stopPropagation();
+    // 외부 경계선 밖으로 진짜 나갔을 때만 가리기
+    if (e.target === dropZone) {
+        dropZone.style.display = 'none';
+    }
 });
+
+// 파일 파싱 내부 안정화 코어 함수
+function readDroppedFile(file, isHandleMode = false) {
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        try {
+            data = JSON.parse(event.target.result);
+            localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+
+            if (isHandleMode) {
+                document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
+                document.getElementById('verifyBtn').style.display = 'none';
+            } else {
+                fileHandle = null;
+                document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 미활성화 - 수정 후 내보내기 필요)`;
+                document.getElementById('verifyBtn').style.display = 'none';
+            }
+            editIndex = -1;
+            renderTable();
+            updateGraph();
+        } catch (err) {
+            alert("JSON 파일 내부 형식이 유효하지 않습니다.");
+        }
+    };
+    reader.readAsText(file);
+}
 
 dropZone.addEventListener('drop', async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     dropZone.style.display = 'none';
 
+    // 1순위: File System Access API 시도 (보안 팝업 대응 트라이캐치 구조)
     if (e.dataTransfer.items && e.dataTransfer.items[0]) {
         const item = e.dataTransfer.items[0];
-
         if (typeof item.getAsFileSystemHandle === 'function') {
             try {
                 const handle = await item.getAsFileSystemHandle();
-
                 if (handle.kind === 'file') {
                     if (!handle.name.endsWith('.json')) {
                         alert("가계부용 JSON 형식의 파일만 드롭해 주세요!");
                         return;
                     }
-
                     fileHandle = handle;
-
                     const file = await fileHandle.getFile();
-                    data = JSON.parse(await file.text());
+                    await setHandle('current_handle', fileHandle); // IDB에 바인딩 영구 저장
 
-                    localStorage.setItem('maple_ledger_data', JSON.stringify(data));
-                    await setHandle('current_handle', fileHandle); // IndexedDB에 파일 영구 매핑 저장
-
-                    document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
-                    document.getElementById('verifyBtn').style.display = 'none';
-                    editIndex = -1;
-                    renderTable();
-                    updateGraph();
+                    readDroppedFile(file, true);
                     return;
                 }
             } catch (err) {
-                console.error("드롭 파일 핸들러 바인딩 실패, 일반 폴백 작동:", err);
+                console.warn("보안 제약으로 파일 핸들러 추출을 우회하여 표준 모드로 전환합니다.");
             }
         }
     }
 
+    // 2순위: 깃허브 페이지 도메인 격리로 핸들러 오류 발생 시 실행되는 안전한 폴백 FileReader 모드
     const files = e.dataTransfer.files;
     if (files.length > 0) {
         const file = files[0];
@@ -420,21 +454,6 @@ dropZone.addEventListener('drop', async (e) => {
             alert("가계부용 JSON 형식의 파일만 드롭해 주세요!");
             return;
         }
-        const reader = new FileReader();
-        reader.onload = async function (event) {
-            try {
-                data = JSON.parse(event.target.result);
-                fileHandle = null;
-                localStorage.setItem('maple_ledger_data', JSON.stringify(data));
-                document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 미활성화 - 수정 후 내보내기 필요)`;
-                document.getElementById('verifyBtn').style.display = 'none';
-                editIndex = -1;
-                renderTable();
-                updateGraph();
-            } catch (err) {
-                alert("JSON 파일 내부 형식이 유효하지 않습니다.");
-            }
-        };
-        reader.readAsText(file);
+        readDroppedFile(file, false);
     }
 });
