@@ -1,7 +1,96 @@
 let data = [];
 let fileHandle;
 let myChart;
-let editIndex = -1; // 현재 인라인 편집 중인 행의 인덱스 추적 (-1은 편집 중 아님)
+let editIndex = -1;
+
+// ==========================================
+// [신규] GitHub Pages용 순수 브라우저 내장 IndexedDB 최소화 모듈
+// ==========================================
+const DB_NAME = 'MapleLedgerDB';
+const STORE_NAME = 'FileHandles';
+
+function getDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function setHandle(key, val) {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(val, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function getHandle(key) {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(tx.error);
+    });
+}
+
+// 페이지 최초 구동 및 새로고침 감지 시 구동 로직
+window.addEventListener('DOMContentLoaded', async () => {
+    // 1. 테이블 텍스트 데이터 복원 (LocalStorage)
+    const savedData = localStorage.getItem('maple_ledger_data');
+    if (savedData) {
+        try {
+            data = JSON.parse(savedData);
+            renderTable();
+            updateGraph();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // 2. 파일 쓰기 권한 구조 복원 (IndexedDB)
+    try {
+        const handle = await getHandle('current_handle');
+        if (handle) {
+            fileHandle = handle;
+            document.getElementById('fileNameDisplay').innerText = `연동 파일: ${handle.name} (새로고침됨)`;
+            document.getElementById('verifyBtn').style.display = 'inline-block'; // 권한 승인 버튼 활성화
+        }
+    } catch (err) {
+        console.error("기존 파일 핸들 복원 실패:", err);
+    }
+});
+
+// [신규] ⚠️ 권한 승인하기 버튼 이벤트 처리
+document.getElementById('verifyBtn').addEventListener('click', async () => {
+    if (!fileHandle) return;
+
+    // 브라우저 보안 팝업을 강제 호출하여 파일 수정 쓰기 권한 요청
+    const opts = { mode: 'readwrite' };
+    if ((await fileHandle.queryPermission(opts)) === 'granted') {
+        alert("이미 권한이 승인되어 있습니다.");
+        document.getElementById('verifyBtn').style.display = 'none';
+        return;
+    }
+
+    if ((await fileHandle.requestPermission(opts)) === 'granted') {
+        document.getElementById('fileNameDisplay').innerText = `현재 파일: ${fileHandle.name} (실시간 동기화 활성화됨)`;
+        document.getElementById('verifyBtn').style.display = 'none';
+
+        // 최신 내용 동기화 읽기
+        const file = await fileHandle.getFile();
+        data = JSON.parse(await file.text());
+        localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+        renderTable();
+        updateGraph();
+    } else {
+        alert("권한이 거부되면 실시간 수정 사항이 원본 파일에 자동으로 쓰여지지 않습니다.");
+    }
+});
 
 // 1. 기존 파일 불러오기 버튼 (클릭 방식)
 document.getElementById('fileInput').addEventListener('click', async () => {
@@ -11,7 +100,12 @@ document.getElementById('fileInput').addEventListener('click', async () => {
         });
         const file = await fileHandle.getFile();
         data = JSON.parse(await file.text());
-        document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name}`;
+        document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
+        document.getElementById('verifyBtn').style.display = 'none';
+
+        // 데이터와 파일 객체를 각각 브라우저 저장소에 분할 안전 백업
+        localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+        await setHandle('current_handle', fileHandle);
 
         editIndex = -1;
         renderTable();
@@ -33,9 +127,8 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-// 3. 기록 추가 (추가 즉시 saveFile 실행)
+// 3. 기록 추가
 document.getElementById('addBtn').addEventListener('click', async () => {
-    if (data.length === 0 && !fileHandle) return alert("먼저 파일을 불러오거나 드롭하여 연동해주세요!");
     const category = document.getElementById('category').value;
     const amount = document.getElementById('amount').value;
 
@@ -49,22 +142,25 @@ document.getElementById('addBtn').addEventListener('click', async () => {
 
     renderTable();
     updateGraph();
-    await saveFile(); // 실시간 저장 연동
+    await saveFile();
 });
 
-// 4. 파일 실시간 덮어쓰기 저장
+// 4. 파일 실시간 덮어쓰기 및 로컬 스토리지 동시 백업
 async function saveFile() {
+    localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+
     if (!fileHandle) {
-        console.log("파일 핸들이 확보되지 않아 실시간 저장을 스킵합니다.");
+        console.log("자동 복원 모드 작동 중: 원본 .json 파일 반영을 원하시면 최초 1회 [파일 불러오기/드롭] 혹은 [권한 승인]을 해주세요.");
         return;
     }
     try {
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(data, null, 2));
         await writable.close();
-        console.log("원본 파일에 실시간 자동 저장 완료!");
+        console.log("원본 파일에 실시간 반영 완료!");
     } catch (err) {
-        console.error("파일 저장 오류 (권한 미승인 등):", err);
+        console.error("실시간 오버라이트 실패 (권한 재인증 필요):", err);
+        document.getElementById('verifyBtn').style.display = 'inline-block';
     }
 }
 
@@ -106,7 +202,7 @@ async function saveEdit(index) {
     editIndex = -1;
     renderTable();
     updateGraph();
-    await saveFile(); // 수정 즉시 자동 실시간 저장
+    await saveFile();
 }
 
 async function deleteItem(index) {
@@ -119,7 +215,7 @@ async function deleteItem(index) {
 
     renderTable();
     updateGraph();
-    await saveFile(); // 삭제 즉시 자동 실시간 저장
+    await saveFile();
 }
 
 // 8. 그래프 제어 로직
@@ -266,9 +362,7 @@ function calculateTotalProfit() {
     document.getElementById('totalProfit').innerText = totalProfit.toLocaleString();
 }
 
-// ==========================================
-// 10. [수정 완료] 드래그 앤 드롭 핸들러 추출 및 실시간 오버라이트 연동 로직
-// ==========================================
+// 10. 드래그 앤 드롭 파일 탐지 로직 (IDB 연동 완료)
 const dropZone = document.getElementById('dropZone');
 
 window.addEventListener('dragover', (e) => {
@@ -285,41 +379,40 @@ dropZone.addEventListener('drop', async (e) => {
     e.preventDefault();
     dropZone.style.display = 'none';
 
-    // e.dataTransfer.items 가 존재하고 DataTransferItem 객체가 유효한지 체크
     if (e.dataTransfer.items && e.dataTransfer.items[0]) {
         const item = e.dataTransfer.items[0];
 
-        // 브라우저의 최신 File System Access API 기능으로 아이템을 파일 핸들러로 다이렉트 변환
         if (typeof item.getAsFileSystemHandle === 'function') {
             try {
                 const handle = await item.getAsFileSystemHandle();
 
-                // 디렉토리가 아닌 순수 파일일 경우에만 바인딩
                 if (handle.kind === 'file') {
                     if (!handle.name.endsWith('.json')) {
                         alert("가계부용 JSON 형식의 파일만 드롭해 주세요!");
                         return;
                     }
 
-                    // 글로벌 파일 핸들 변수에 주소 이식 (이로써 쓰기 권한 통로 개방)
                     fileHandle = handle;
 
                     const file = await fileHandle.getFile();
                     data = JSON.parse(await file.text());
 
-                    document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 자동저장 중)`;
+                    localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+                    await setHandle('current_handle', fileHandle); // IndexedDB에 파일 영구 매핑 저장
+
+                    document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
+                    document.getElementById('verifyBtn').style.display = 'none';
                     editIndex = -1;
                     renderTable();
                     updateGraph();
                     return;
                 }
             } catch (err) {
-                console.error("드롭 파일 핸들 획득 실패, 일반 리더 모드로 폴백:", err);
+                console.error("드롭 파일 핸들러 바인딩 실패, 일반 폴백 작동:", err);
             }
         }
     }
 
-    // 최신 API가 지원되지 않는 구형 환경일 때를 위한 예외 안전장치 (폴백 코드)
     const files = e.dataTransfer.files;
     if (files.length > 0) {
         const file = files[0];
@@ -328,11 +421,13 @@ dropZone.addEventListener('drop', async (e) => {
             return;
         }
         const reader = new FileReader();
-        reader.onload = function (event) {
+        reader.onload = async function (event) {
             try {
                 data = JSON.parse(event.target.result);
-                fileHandle = null; // 핸들러를 얻지 못했으므로 덮어쓰기 비활성화
-                document.getElementById('fileNameDisplay').innerText = `현재 파일(읽기전용): ${file.name} (수정 후 내보내기 필요)`;
+                fileHandle = null;
+                localStorage.setItem('maple_ledger_data', JSON.stringify(data));
+                document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 미활성화 - 수정 후 내보내기 필요)`;
+                document.getElementById('verifyBtn').style.display = 'none';
                 editIndex = -1;
                 renderTable();
                 updateGraph();
