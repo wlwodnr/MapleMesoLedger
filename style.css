@@ -33,6 +33,7 @@ input {
     margin-right: 5px;
 }
 
+/* 기본 공통 대형 버튼 스타일 */
 button {
     padding: 10px 20px;
     border: none;
@@ -140,28 +141,36 @@ input:checked+.slider:before {
     transform: translateX(35px);
 }
 
-/* 수정, 삭제 인라인 소형 버튼 스타일 */
-.btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
-    border-radius: 6px;
-    font-weight: 500;
-    margin-right: 3px;
+/* ==========================================================================
+   [보정 완료] 테이블 내 수정, 삭제 인라인 소형 버튼 스타일
+   ========================================================================== */
+button.btn-sm {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    margin-right: 3px !important;
+    width: auto !important;
+    /* 가로로 늘어나는 현상 차단 */
+    height: auto !important;
 }
 
-.btn-edit {
-    background-color: #f59e0b;
-    color: white;
+button.btn-edit {
+    background-color: #f59e0b !important;
+    /* 주황색 고정 */
+    color: white !important;
 }
 
-.btn-delete {
-    background-color: #ef4444;
-    color: white;
+button.btn-delete {
+    background-color: #ef4444 !important;
+    /* 빨간색 고정 */
+    color: white !important;
 }
 
-.btn-cancel {
-    background-color: #64748b;
-    color: white;
+button.btn-cancel {
+    background-color: #64748b !important;
+    /* 회색 고정 */
+    color: white !important;
 }
 
 /* 테이블 인라인 편집창 스타일 */
@@ -171,6 +180,7 @@ input:checked+.slider:before {
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     font-size: 14px;
+    color: #1e293b;
 }
 
 @media (max-width: 600px) {
