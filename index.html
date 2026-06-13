@@ -14,9 +14,12 @@
         <h1>🎮 재화 관리 대시보드</h1>
 
         <div class="card">
-            <button id="fileInput">📁 파일 불러오기</button>
-            <button id="exportBtn" style="background: #10b981; margin-left: 10px;">💾 데이터 내보내기</button>
-            <span id="fileNameDisplay" style="margin-left: 10px; font-weight: bold;"></span>
+            <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <button id="fileInput">📁 파일 불러오기</button>
+                <button id="exportBtn" style="background: #10b981; margin-left: 10px;">💾 데이터 내보내기</button>
+                <span id="fileNameDisplay" style="margin-left: 10px; font-weight: bold;"></span>
+            </div>
+            <p class="file-guide">💡 가계부 JSON 파일을 이 화면 위에 끌어다 놓아도(Drag & Drop) 바로 불러올 수 있습니다.</p>
         </div>
 
         <div class="card">
@@ -74,6 +77,13 @@
             <div class="chart-container"><canvas id="myChart"></canvas></div>
         </div>
     </div>
+
+    <div id="dropZone" class="drop-zone-overlay">
+        <div class="drop-zone-box">
+            <p>📁 여기에 가계부 JSON 파일을 내려놓으세요!</p>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 
