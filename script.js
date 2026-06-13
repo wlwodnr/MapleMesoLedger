@@ -73,7 +73,7 @@ document.getElementById('pricePerZogak').addEventListener('input', updateGraph);
 document.getElementById('showGraphBtn').addEventListener('click', updateGraph);
 document.getElementById('periodFilter').addEventListener('change', updateGraph);
 
-// 7. 핵심 이중 Y축 멀티 렌더링 및 토글 제어 로직
+// 7. 핵심 이중 Y축 멀티 렌더링 및 토글 제어 로직 (날짜 버그 수정 버전)
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -81,16 +81,32 @@ function updateGraph() {
 
     const step = days === 7 ? 1 : (days === 30 ? 3 : 6);
     const labels = [], mesoValues = [], zogakValues = [];
+
+    // 오늘 날짜의 자정(00:00:00) 기준으로 설정하여 시차 오차 방지
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
+    // 기간에 맞게 루프 돌며 데이터 바구니 생성
     for (let i = days; i >= 0; i -= step) {
-        let target = new Date();
-        target.setDate(today.getDate() - i);
-        labels.push(target.toLocaleDateString().slice(5));
+        // 시작일과 종료일 계산
+        let startDate = new Date(today);
+        startDate.setDate(today.getDate() - i);
 
+        let endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + step);
+
+        // 그래프 축에 표시할 이름 (X축 라벨 생성)
+        labels.push(startDate.toLocaleDateString().slice(5));
+
+        // 해당 범위에 포함되는 기록들 필터링
         const filtered = data.filter(item => {
-            let diff = (today - new Date(item.date)) / (1000 * 60 * 60 * 24);
-            return diff <= i && diff > (i - step);
+            // item.date 문자열의 마침표와 공백을 정리하여 정확한 Date 객체 생성
+            const itemDateStr = item.date.replace(/\s/g, ''); // 공백 제거
+            const itemDate = new Date(itemDateStr);
+            itemDate.setHours(0, 0, 0, 0);
+
+            // 시작일 이상, 종료일 미만 조건 만족 시 포함
+            return itemDate >= startDate && itemDate < endDate;
         });
 
         const dailyMeso = filtered.filter(item => item.category === '메소').reduce((sum, item) => sum + item.amount, 0);
