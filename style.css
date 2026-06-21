@@ -188,7 +188,6 @@ button.btn-cancel {
     color: white !important;
 }
 
-/* 판매 버튼용 비비드 그린 스타일 */
 button.btn-sell {
     background-color: #10b981 !important;
     color: white !important;
@@ -314,6 +313,60 @@ button.btn-sell {
     border-radius: 6px;
 }
 
+/* 🛠️ 추가: 인라인 판매 기입 블록 스타일 */
+.sell-block-row td {
+    background-color: #f8fafc;
+    padding: 0;
+}
+
+.sell-input-container {
+    border-left: 4px solid #10b981;
+    padding: 15px 20px;
+    background: #ffffff;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.sell-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 10px;
+}
+
+.sell-body {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.sell-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.sell-price-input {
+    width: 200px !important;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+}
+
+.sell-unit-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #10b981;
+    white-space: nowrap;
+}
+
+.sell-actions {
+    display: flex;
+    gap: 5px;
+}
+
 @media (max-width: 600px) {
 
     select,
@@ -343,6 +396,23 @@ button.btn-sell {
     }
 
     .table-controls select {
+        flex: 1;
+    }
+
+    .sell-body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sell-price-input {
+        width: 100% !important;
+    }
+
+    .sell-actions {
+        width: 100%;
+    }
+
+    .sell-actions button {
         flex: 1;
     }
 }

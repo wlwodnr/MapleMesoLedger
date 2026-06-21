@@ -10,6 +10,7 @@ let data = [];
 let fileHandle;
 let myChart;
 let editIndex = -1;
+let sellIndex = -1; // 판매 UI 토글용 인덱스
 
 const DB_NAME = 'MapleLedgerDB';
 const STORE_NAME = 'FileHandles';
@@ -69,6 +70,16 @@ function updateAmountUnitDisplay() {
     const value = Number(amountInput.value);
     const category = categorySelect.value;
     unitDisplay.innerText = formatKoreanUnit(value, category);
+}
+
+// 인라인 판매 기입 블록의 단위 실시간 업데이트 핸들러
+function updateSellUnitDisplay(index) {
+    const inputEl = document.getElementById(`sellPriceInput_${index}`);
+    const unitEl = document.getElementById(`sellPriceUnitText_${index}`);
+    if (!inputEl || !unitEl) return;
+
+    const value = Number(inputEl.value);
+    unitEl.innerText = formatKoreanUnit(value, '메소');
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -148,6 +159,7 @@ document.getElementById('fileInput').addEventListener('click', async () => {
         await setHandle('current_handle', fileHandle);
 
         editIndex = -1;
+        sellIndex = -1;
         renderTable();
         updateGraph();
     } catch (err) {
@@ -216,6 +228,7 @@ document.getElementById('periodFilter').addEventListener('change', updateGraph);
 
 function startEdit(index) {
     editIndex = index;
+    sellIndex = -1; // 수정 돌입 시 판매 창 닫기
     renderTable();
 }
 
@@ -249,40 +262,46 @@ async function deleteItem(index) {
     data.splice(index, 1);
     if (editIndex === index) editIndex = -1;
     else if (editIndex > index) editIndex--;
+    if (sellIndex === index) sellIndex = -1;
+    else if (sellIndex > index) sellIndex--;
     renderTable();
     updateGraph();
     await saveFile();
 }
 
-// 🛠️ 조각 판매 및 수수료 5% 차감 후 메소 전환 정산 함수
-async function sellZogakItem(index) {
-    const item = data[index];
-    if (!item || item.category !== '조각') return;
+// 판매 기입 블록 토글 제어
+function toggleSellBlock(index) {
+    if (sellIndex === index) {
+        sellIndex = -1;
+    } else {
+        sellIndex = index;
+        editIndex = -1; // 판매 진입 시 인라인 수정창 닫기
+    }
+    renderTable();
+}
 
-    const priceInput = prompt(`[조각 판매 정산]\n판매할 조각 개수: ${item.amount}개\n\n개당 판매할 메소 가격을 입력해주세요:`);
-    if (priceInput === null) return; // 취소 버튼
+// 기입 블록 내부 최종 판매 정산 처리 함수
+async function submitSellZogak(index) {
+    const priceInputEl = document.getElementById(`sellPriceInput_${index}`);
+    if (!priceInputEl) return;
 
-    const pricePerUnit = Number(priceInput);
+    const pricePerUnit = Number(priceInputEl.value);
     if (isNaN(pricePerUnit) || pricePerUnit <= 0) {
-        alert("올바른 가격을 입력해주세요.");
+        alert("올바른 개당 가격을 입력해주세요.");
         return;
     }
 
-    // 수수료 5% 차감 연산식 적용 (원값 * 가격 * 0.95), 소수점 절사
+    const item = data[index];
     const totalMesoAmount = Math.floor(item.amount * pricePerUnit * 0.95);
 
-    // 알림 컨펌 후 데이터 속성 치환
-    if (confirm(`수수료 5%를 제외한 최종 정산 금액:\n💰 ${totalMesoAmount.toLocaleString()} 메소\n\n조각 재화를 메소 수입 데이터로 전환하시겠습니까?`)) {
-        data[index].category = '메소';
-        data[index].type = '수입';
-        data[index].amount = totalMesoAmount;
+    data[index].category = '메소';
+    data[index].type = '수입';
+    data[index].amount = totalMesoAmount;
 
-        if (editIndex === index) editIndex = -1;
-
-        renderTable();
-        updateGraph();
-        await saveFile();
-    }
+    sellIndex = -1;
+    renderTable();
+    updateGraph();
+    await saveFile();
 }
 
 function updateGraph() {
@@ -393,7 +412,9 @@ function renderTable() {
         processedData.sort((a, b) => a.amount - b.amount);
     }
 
-    document.getElementById('recordBody').innerHTML = processedData.map((item) => {
+    let htmlRows = [];
+
+    processedData.forEach((item) => {
         const index = item.originalIndex;
         const iconPath = item.category === '메소' ? 'IconImage/Meso.png' : 'IconImage/Pice of Erda.png';
         const imgTag = `<img src="${iconPath}" class="ledger-icon" alt="${item.category}">`;
@@ -401,13 +422,12 @@ function renderTable() {
         const typeClass = isIncome ? 'type-income' : 'type-expense';
         const sign = isIncome ? '+' : '-';
 
-        // 조각 카테고리 데이터일 때만 판매 버튼 생성
         const sellButtonTag = item.category === '조각'
-            ? `<button onclick="sellZogakItem(${index})" class="btn-sm btn-sell">💰 판매</button>`
+            ? `<button onclick="toggleSellBlock(${index})" class="btn-sm btn-sell">💰 판매</button>`
             : '';
 
         if (editIndex === index) {
-            return `
+            htmlRows.push(`
                 <tr>
                     <td>${item.date}</td>
                     <td class="icon-cell"></td>
@@ -431,24 +451,49 @@ function renderTable() {
                         <button onclick="cancelEdit()" class="btn-sm btn-cancel">취소</button>
                     </td>
                 </tr>
-            `;
+            `);
+        } else {
+            htmlRows.push(`
+                <tr>
+                    <td>${item.date}</td>
+                    <td class="icon-cell">${imgTag}</td>
+                    <td class="${typeClass}" style="font-weight:bold;">${item.type}</td>
+                    <td>${item.category}</td>
+                    <td class="${typeClass}" style="font-weight:bold;">${sign} ${item.amount.toLocaleString()}</td>
+                    <td>
+                        <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
+                        <button onclick="deleteItem(${index})" class="btn-sm btn-delete">❌ 삭제</button>
+                        ${sellButtonTag}
+                    </td>
+                </tr>
+            `);
         }
 
-        return `
-            <tr>
-                <td>${item.date}</td>
-                <td class="icon-cell">${imgTag}</td>
-                <td class="${typeClass}" style="font-weight:bold;">${item.type}</td>
-                <td>${item.category}</td>
-                <td class="${typeClass}" style="font-weight:bold;">${sign} ${item.amount.toLocaleString()}</td>
-                <td>
-                    <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
-                    <button onclick="deleteItem(${index})" class="btn-sm btn-delete">❌ 삭제</button>
-                    ${sellButtonTag}
-                </td>
-            </tr>
-        `;
-    }).join('');
+        // 🛠️ 판매 기입 블록UI 렌더링 영역 추가 (해당 조각의 판매 창이 열려있을 때)
+        if (sellIndex === index && item.category === '조각') {
+            htmlRows.push(`
+                <tr class="sell-block-row">
+                    <td colspan="6">
+                        <div class="sell-input-container">
+                            <div class="sell-title">💰 조각 판매 정산 (5% 수수료 자동 적용)</div>
+                            <div class="sell-body">
+                                <div class="sell-field">
+                                    <input type="number" id="sellPriceInput_${index}" class="sell-price-input" placeholder="개당 판매 메소 가격 입력" oninput="updateSellUnitDisplay(${index})">
+                                    <span id="sellPriceUnitText_${index}" class="sell-unit-text"></span>
+                                </div>
+                                <div class="sell-actions">
+                                    <button onclick="submitSellZogak(${index})" class="btn-sm btn-sell">정산 완료</button>
+                                    <button onclick="toggleSellBlock(${index})" class="btn-sm btn-cancel">닫기</button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `);
+        }
+    });
+
+    document.getElementById('recordBody').innerHTML = htmlRows.join('');
 
     const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
     const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
@@ -507,6 +552,7 @@ function readDroppedFile(file, isHandleMode = false) {
                 document.getElementById('verifyBtn').style.display = 'none';
             }
             editIndex = -1;
+            sellIndex = -1;
             renderTable();
             updateGraph();
         } catch (err) {
