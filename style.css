@@ -188,6 +188,12 @@ button.btn-cancel {
     color: white !important;
 }
 
+/* 판매 버튼용 비비드 그린 스타일 */
+button.btn-sell {
+    background-color: #10b981 !important;
+    color: white !important;
+}
+
 .table-input {
     width: 90%;
     padding: 6px;
@@ -286,7 +292,6 @@ button.btn-cancel {
     white-space: nowrap;
 }
 
-/* 필터 조작계 배치용 레이아웃 상단 구조 */
 .table-header-flex {
     display: flex;
     align-items: center;

@@ -90,7 +90,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('amount').addEventListener('input', updateAmountUnitDisplay);
     document.getElementById('category').addEventListener('change', updateAmountUnitDisplay);
 
-    // 필터 및 정렬 조작계 이벤트 연동
     document.getElementById('tableFilter').addEventListener('change', renderTable);
     document.getElementById('tableSort').addEventListener('change', renderTable);
 
@@ -255,6 +254,37 @@ async function deleteItem(index) {
     await saveFile();
 }
 
+// 🛠️ 조각 판매 및 수수료 5% 차감 후 메소 전환 정산 함수
+async function sellZogakItem(index) {
+    const item = data[index];
+    if (!item || item.category !== '조각') return;
+
+    const priceInput = prompt(`[조각 판매 정산]\n판매할 조각 개수: ${item.amount}개\n\n개당 판매할 메소 가격을 입력해주세요:`);
+    if (priceInput === null) return; // 취소 버튼
+
+    const pricePerUnit = Number(priceInput);
+    if (isNaN(pricePerUnit) || pricePerUnit <= 0) {
+        alert("올바른 가격을 입력해주세요.");
+        return;
+    }
+
+    // 수수료 5% 차감 연산식 적용 (원값 * 가격 * 0.95), 소수점 절사
+    const totalMesoAmount = Math.floor(item.amount * pricePerUnit * 0.95);
+
+    // 알림 컨펌 후 데이터 속성 치환
+    if (confirm(`수수료 5%를 제외한 최종 정산 금액:\n💰 ${totalMesoAmount.toLocaleString()} 메소\n\n조각 재화를 메소 수입 데이터로 전환하시겠습니까?`)) {
+        data[index].category = '메소';
+        data[index].type = '수입';
+        data[index].amount = totalMesoAmount;
+
+        if (editIndex === index) editIndex = -1;
+
+        renderTable();
+        updateGraph();
+        await saveFile();
+    }
+}
+
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -347,17 +377,14 @@ function renderTable() {
     const filterValue = document.getElementById('tableFilter').value;
     const sortValue = document.getElementById('tableSort').value;
 
-    // 원본 백업 인덱스를 보존하면서 데이터 매핑
     let processedData = data.map((item, originalIndex) => ({ ...item, originalIndex }));
 
-    // 1. 메소만 보기 / 조각만 보기 필터 처리
     if (filterValue === '메소') {
         processedData = processedData.filter(item => item.category === '메소');
     } else if (filterValue === '조각') {
         processedData = processedData.filter(item => item.category === '조각');
     }
 
-    // 2. 정렬 조건 분기 처리 (최신순 / 금액 높은순 / 금액 낮은순)
     if (sortValue === '최신순') {
         processedData.sort((a, b) => new Date(b.date) - new Date(a.date));
     } else if (sortValue === '금액높은순') {
@@ -373,6 +400,11 @@ function renderTable() {
         const isIncome = item.type !== '소모';
         const typeClass = isIncome ? 'type-income' : 'type-expense';
         const sign = isIncome ? '+' : '-';
+
+        // 조각 카테고리 데이터일 때만 판매 버튼 생성
+        const sellButtonTag = item.category === '조각'
+            ? `<button onclick="sellZogakItem(${index})" class="btn-sm btn-sell">💰 판매</button>`
+            : '';
 
         if (editIndex === index) {
             return `
@@ -412,6 +444,7 @@ function renderTable() {
                 <td>
                     <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
                     <button onclick="deleteItem(${index})" class="btn-sm btn-delete">❌ 삭제</button>
+                    ${sellButtonTag}
                 </td>
             </tr>
         `;
