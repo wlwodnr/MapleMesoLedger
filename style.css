@@ -240,3 +240,11 @@ button.btn-cancel {
         margin-bottom: 5px;
     }
 }
+
+.type-income {
+    color: #2563eb;
+}
+
+.type-expense {
+    color: #dc2626;
+}

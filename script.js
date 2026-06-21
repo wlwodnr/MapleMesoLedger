@@ -4,10 +4,8 @@
 (function () {
     const script = document.createElement('script');
     script.async = true;
-    // GitHub Pages 도메인에서도 누락 없이 카운트되도록 vhost 지정을 돕는 속성입니다.
     script.setAttribute('data-goatcounter', 'https://JJU0111.goatcounter.com/count');
     script.src = '//gc.zgo.at/count.js';
-
     (document.head || document.body).appendChild(script);
 })();
 
@@ -51,13 +49,13 @@ async function getHandle(key) {
     });
 }
 
-// 페이지 최초 구동 및 새로고침 감지 시 구동 로직
 window.addEventListener('DOMContentLoaded', async () => {
-    // 1. 테이블 텍스트 데이터 복원 (LocalStorage)
     const savedData = localStorage.getItem('maple_ledger_data');
     if (savedData) {
         try {
             data = JSON.parse(savedData);
+            // 하위 호환성 유지: 기존 데이터에 type이 없으면 '수입'으로 기본 지정
+            data = data.map(item => ({ type: '수입', ...item }));
             renderTable();
             updateGraph();
         } catch (e) {
@@ -65,7 +63,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 2. 파일 쓰기 권한 구조 복원 (IndexedDB)
     try {
         const handle = await getHandle('current_handle');
         if (handle) {
@@ -78,17 +75,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// ⚠️ 권한 승인하기 버튼 이벤트 처리
 document.getElementById('verifyBtn').addEventListener('click', async () => {
     if (!fileHandle) return;
-
     const opts = { mode: 'readwrite' };
     if ((await fileHandle.queryPermission(opts)) === 'granted') {
         alert("이미 권한이 승인되어 있습니다.");
         document.getElementById('verifyBtn').style.display = 'none';
         return;
     }
-
     try {
         if ((await fileHandle.requestPermission(opts)) === 'granted') {
             document.getElementById('fileNameDisplay').innerText = `현재 파일: ${fileHandle.name} (실시간 동기화 활성화됨)`;
@@ -96,6 +90,7 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
 
             const file = await fileHandle.getFile();
             data = JSON.parse(await file.text());
+            data = data.map(item => ({ type: '수입', ...item }));
             localStorage.setItem('maple_ledger_data', JSON.stringify(data));
             renderTable();
             updateGraph();
@@ -108,7 +103,6 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
     }
 });
 
-// 1. 기존 파일 불러오기 버튼 (클릭 방식)
 document.getElementById('fileInput').addEventListener('click', async () => {
     try {
         [fileHandle] = await window.showOpenFilePicker({
@@ -116,6 +110,7 @@ document.getElementById('fileInput').addEventListener('click', async () => {
         });
         const file = await fileHandle.getFile();
         data = JSON.parse(await file.text());
+        data = data.map(item => ({ type: '수입', ...item }));
         document.getElementById('fileNameDisplay').innerText = `현재 파일: ${file.name} (실시간 동기화 활성화)`;
         document.getElementById('verifyBtn').style.display = 'none';
 
@@ -130,7 +125,6 @@ document.getElementById('fileInput').addEventListener('click', async () => {
     }
 });
 
-// 2. 내보내기 기능
 document.getElementById('exportBtn').addEventListener('click', () => {
     if (data.length === 0) return alert("내보낼 데이터가 없습니다.");
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -142,8 +136,9 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-// 3. 기록 추가
+// 🛠️ 기록 추가 시 type(수입/소모) 반영
 document.getElementById('addBtn').addEventListener('click', async () => {
+    const txType = document.getElementById('transactionType').value;
     const category = document.getElementById('category').value;
     const amount = document.getElementById('amount').value;
 
@@ -151,6 +146,7 @@ document.getElementById('addBtn').addEventListener('click', async () => {
 
     data.push({
         date: new Date().toLocaleDateString(),
+        type: txType,
         category: category,
         amount: Number(amount)
     });
@@ -160,38 +156,29 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     await saveFile();
 });
 
-// 4. 파일 실시간 덮어쓰기 저장
 async function saveFile() {
     localStorage.setItem('maple_ledger_data', JSON.stringify(data));
-
-    if (!fileHandle) {
-        console.log("자동 복원 모드 작동 중");
-        return;
-    }
+    if (!fileHandle) return;
     try {
         const writable = await fileHandle.createWritable();
         await writable.write(JSON.stringify(data, null, 2));
         await writable.close();
-        console.log("원본 파일에 실시간 반영 완료!");
     } catch (err) {
         console.error("실시간 오버라이트 실패:", err);
         document.getElementById('verifyBtn').style.display = 'inline-block';
     }
 }
 
-// 5. 상단 대시보드 조각값 적용 및 연동 버튼
 document.getElementById('calcBtn').addEventListener('click', () => {
     calculateTotalProfit();
     updateGraph();
 });
 
-// 6. 입력값 변경 및 토글 작동 시 실시간 그래프 리액션 등록
 document.getElementById('useZogakCalc').addEventListener('change', updateGraph);
 document.getElementById('pricePerZogak').addEventListener('input', updateGraph);
 document.getElementById('showGraphBtn').addEventListener('click', updateGraph);
 document.getElementById('periodFilter').addEventListener('change', updateGraph);
 
-// 7. 인라인 수정/삭제 핸들러 함수군
 function startEdit(index) {
     editIndex = index;
     renderTable();
@@ -202,7 +189,9 @@ function cancelEdit() {
     renderTable();
 }
 
+// 🛠️ 인라인 수정 저장 시 type 반영
 async function saveEdit(index) {
+    const editType = document.getElementById(`editType_${index}`).value;
     const editCategory = document.getElementById(`editCategory_${index}`).value;
     const editAmount = Number(document.getElementById(`editAmount_${index}`).value);
 
@@ -211,6 +200,7 @@ async function saveEdit(index) {
         return;
     }
 
+    data[index].type = editType;
     data[index].category = editCategory;
     data[index].amount = editAmount;
 
@@ -222,18 +212,15 @@ async function saveEdit(index) {
 
 async function deleteItem(index) {
     if (!confirm("정말로 이 기록을 삭제하시겠습니까?")) return;
-
     data.splice(index, 1);
-
     if (editIndex === index) editIndex = -1;
     else if (editIndex > index) editIndex--;
-
     renderTable();
     updateGraph();
     await saveFile();
 }
 
-// 8. 그래프 제어 로직
+// 🛠️ 그래프 제어 로직 수정 (수입은 +, 소모는 -로 누적 계산)
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -261,8 +248,14 @@ function updateGraph() {
             return itemDate >= startDate && itemDate < endDate;
         });
 
-        const dailyMeso = filtered.filter(item => item.category === '메소').reduce((sum, item) => sum + item.amount, 0);
-        const dailyZogak = filtered.filter(item => item.category === '조각').reduce((sum, item) => sum + item.amount, 0);
+        // 수입과 소모에 따른 연산 부호 설정 (+ / -)
+        const dailyMeso = filtered.filter(item => item.category === '메소').reduce((sum, item) => {
+            return sum + (item.type === '소모' ? -item.amount : item.amount);
+        }, 0);
+
+        const dailyZogak = filtered.filter(item => item.category === '조각').reduce((sum, item) => {
+            return sum + (item.type === '소모' ? -item.amount : item.amount);
+        }, 0);
 
         mesoValues.push(useCalc ? dailyMeso + (dailyZogak * pricePerZogak) : dailyMeso);
         zogakValues.push(dailyZogak);
@@ -272,7 +265,7 @@ function updateGraph() {
 
     const datasets = [
         {
-            label: useCalc ? '통합 예상 수익 (메소)' : '순수 메소 수익',
+            label: useCalc ? '통합 순수익 (메소)' : '메소 변동량',
             data: mesoValues,
             yAxisID: 'yMeso',
             backgroundColor: useCalc ? '#a855f7' : '#6366f1',
@@ -282,7 +275,7 @@ function updateGraph() {
 
     if (!useCalc) {
         datasets.push({
-            label: '순수 조각 수량',
+            label: '조각 변동량',
             data: zogakValues,
             yAxisID: 'yZogak',
             backgroundColor: '#0ea5e9',
@@ -317,17 +310,26 @@ function updateGraph() {
     });
 }
 
-// 9. 기록 테이블 렌더링
+// 🛠️ 기록 테이블 및 합계 연산 수정 (+, - 기호 및 스타일 클래스 부여)
 function renderTable() {
     document.getElementById('recordBody').innerHTML = data.map((item, index) => {
         const iconPath = item.category === '메소' ? 'IconImage/Meso.png' : 'IconImage/Pice of Erda.png';
         const imgTag = `<img src="${iconPath}" class="ledger-icon" alt="${item.category}">`;
+        const isIncome = item.type !== '소모';
+        const typeClass = isIncome ? 'type-income' : 'type-expense';
+        const sign = isIncome ? '+' : '-';
 
         if (editIndex === index) {
             return `
                 <tr>
                     <td>${item.date}</td>
                     <td class="icon-cell"></td>
+                    <td>
+                        <select id="editType_${index}" class="table-input">
+                            <option value="수입" ${item.type === '수입' ? 'selected' : ''}>수입</option>
+                            <option value="소모" ${item.type === '소모' ? 'selected' : ''}>소모</option>
+                        </select>
+                    </td>
                     <td>
                         <select id="editCategory_${index}" class="table-input">
                             <option value="메소" ${item.category === '메소' ? 'selected' : ''}>메소</option>
@@ -349,8 +351,9 @@ function renderTable() {
             <tr>
                 <td>${item.date}</td>
                 <td class="icon-cell">${imgTag}</td>
+                <td class="${typeClass}" style="font-weight:bold;">${item.type}</td>
                 <td>${item.category}</td>
-                <td>${item.amount.toLocaleString()}</td>
+                <td class="${typeClass}" style="font-weight:bold;">${sign} ${item.amount.toLocaleString()}</td>
                 <td>
                     <button onclick="startEdit(${index})" class="btn-sm btn-edit">✏️ 수정</button>
                     <button onclick="deleteItem(${index})" class="btn-sm btn-delete">❌ 삭제</button>
@@ -359,8 +362,8 @@ function renderTable() {
         `;
     }).join('');
 
-    const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + i.amount, 0);
-    const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + i.amount, 0);
+    const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
+    const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
 
     document.getElementById('totalMeso').innerText = totalMeso.toLocaleString();
     document.getElementById('totalZogak').innerText = totalZogak.toLocaleString();
@@ -370,16 +373,13 @@ function renderTable() {
 
 function calculateTotalProfit() {
     const pricePerZogak = Number(document.getElementById('pricePerZogak').value) || 0;
-    const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + i.amount, 0);
-    const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + i.amount, 0);
+    const totalMeso = data.filter(i => i.category === '메소').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
+    const totalZogak = data.filter(i => i.category === '조각').reduce((sum, i) => sum + (i.type === '소모' ? -i.amount : i.amount), 0);
     const totalProfit = totalMeso + (totalZogak * pricePerZogak);
 
     document.getElementById('totalProfit').innerText = totalProfit.toLocaleString();
 }
 
-// ==========================================
-// 10. [버그 완전 해결] 드래그 앤 드롭 글로벌 가로채기 방지 리스너
-// ==========================================
 const dropZone = document.getElementById('dropZone');
 
 document.addEventListener('dragenter', (e) => {
@@ -407,6 +407,7 @@ function readDroppedFile(file, isHandleMode = false) {
     reader.onload = function (event) {
         try {
             data = JSON.parse(event.target.result);
+            data = data.map(item => ({ type: '수입', ...item }));
             localStorage.setItem('maple_ledger_data', JSON.stringify(data));
 
             if (isHandleMode) {
