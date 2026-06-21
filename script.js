@@ -1,6 +1,3 @@
-// ==========================================
-// [추가] GoatCounter 초경량/노쿠키 방문자 통계 분석 스크립트
-// ==========================================
 (function () {
     const script = document.createElement('script');
     script.async = true;
@@ -14,9 +11,6 @@ let fileHandle;
 let myChart;
 let editIndex = -1;
 
-// ==========================================
-// GitHub Pages용 순수 브라우저 내장 IndexedDB 최소화 모듈
-// ==========================================
 const DB_NAME = 'MapleLedgerDB';
 const STORE_NAME = 'FileHandles';
 
@@ -49,12 +43,39 @@ async function getHandle(key) {
     });
 }
 
+function formatKoreanUnit(num, category) {
+    if (!num || isNaN(num) || num <= 0) return "";
+    if (category === '조각') {
+        return `(${num.toLocaleString()} 개)`;
+    }
+    let result = [];
+    const jo = Math.floor(num / 1000000000000);
+    const eok = Math.floor((num % 1000000000000) / 100000000);
+    const man = Math.floor((num % 100000000) / 10000);
+    const won = num % 10000;
+
+    if (jo > 0) result.push(`${jo}조`);
+    if (eok > 0) result.push(`${eok}억`);
+    if (man > 0) result.push(`${man}만`);
+    if (won > 0 && result.length === 0) result.push(`${won}`);
+
+    return result.length > 0 ? `(${result.join(' ')} 메소)` : "";
+}
+
+function updateAmountUnitDisplay() {
+    const amountInput = document.getElementById('amount');
+    const categorySelect = document.getElementById('category');
+    const unitDisplay = document.getElementById('amountUnit');
+    const value = Number(amountInput.value);
+    const category = categorySelect.value;
+    unitDisplay.innerText = formatKoreanUnit(value, category);
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
     const savedData = localStorage.getItem('maple_ledger_data');
     if (savedData) {
         try {
             data = JSON.parse(savedData);
-            // 하위 호환성 유지: 기존 데이터에 type이 없으면 '수입'으로 기본 지정
             data = data.map(item => ({ type: '수입', ...item }));
             renderTable();
             updateGraph();
@@ -62,6 +83,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             console.error(e);
         }
     }
+
+    document.getElementById('amount').addEventListener('input', updateAmountUnitDisplay);
+    document.getElementById('category').addEventListener('change', updateAmountUnitDisplay);
 
     try {
         const handle = await getHandle('current_handle');
@@ -136,7 +160,6 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     URL.revokeObjectURL(url);
 });
 
-// 🛠️ 기록 추가 시 type(수입/소모) 반영
 document.getElementById('addBtn').addEventListener('click', async () => {
     const txType = document.getElementById('transactionType').value;
     const category = document.getElementById('category').value;
@@ -150,6 +173,9 @@ document.getElementById('addBtn').addEventListener('click', async () => {
         category: category,
         amount: Number(amount)
     });
+
+    document.getElementById('amount').value = "";
+    document.getElementById('amountUnit').innerText = "";
 
     renderTable();
     updateGraph();
@@ -189,7 +215,6 @@ function cancelEdit() {
     renderTable();
 }
 
-// 🛠️ 인라인 수정 저장 시 type 반영
 async function saveEdit(index) {
     const editType = document.getElementById(`editType_${index}`).value;
     const editCategory = document.getElementById(`editCategory_${index}`).value;
@@ -220,7 +245,6 @@ async function deleteItem(index) {
     await saveFile();
 }
 
-// 🛠️ 그래프 제어 로직 수정 (수입은 +, 소모는 -로 누적 계산)
 function updateGraph() {
     const days = Number(document.getElementById('periodFilter').value);
     const useCalc = document.getElementById('useZogakCalc').checked;
@@ -248,7 +272,6 @@ function updateGraph() {
             return itemDate >= startDate && itemDate < endDate;
         });
 
-        // 수입과 소모에 따른 연산 부호 설정 (+ / -)
         const dailyMeso = filtered.filter(item => item.category === '메소').reduce((sum, item) => {
             return sum + (item.type === '소모' ? -item.amount : item.amount);
         }, 0);
@@ -310,7 +333,6 @@ function updateGraph() {
     });
 }
 
-// 🛠️ 기록 테이블 및 합계 연산 수정 (+, - 기호 및 스타일 클래스 부여)
 function renderTable() {
     document.getElementById('recordBody').innerHTML = data.map((item, index) => {
         const iconPath = item.category === '메소' ? 'IconImage/Meso.png' : 'IconImage/Pice of Erda.png';

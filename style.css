@@ -25,7 +25,6 @@ body {
     margin-bottom: 20px;
 }
 
-/* [새로 구현] 파일 업로드 섹션 전용 서브 안내 문구 스타일 */
 .file-guide {
     font-size: 13px;
     color: #64748b;
@@ -232,6 +231,54 @@ button.btn-cancel {
     pointer-events: none;
 }
 
+.type-income {
+    color: #2563eb;
+}
+
+.type-expense {
+    color: #dc2626;
+}
+
+.insert-box-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.insert-inputs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1;
+}
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.input-with-unit input {
+    margin-right: 0 !important;
+    width: 160px;
+}
+
+.amount-unit-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4f46e5;
+    white-space: nowrap;
+}
+
+#addBtn {
+    margin-left: auto;
+    padding: 10px 20px;
+    white-space: nowrap;
+}
+
 @media (max-width: 600px) {
 
     select,
@@ -239,12 +286,14 @@ button.btn-cancel {
         width: 100%;
         margin-bottom: 5px;
     }
-}
 
-.type-income {
-    color: #2563eb;
-}
+    .insert-box-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
 
-.type-expense {
-    color: #dc2626;
+    #addBtn {
+        width: 100%;
+        margin-left: 0;
+    }
 }

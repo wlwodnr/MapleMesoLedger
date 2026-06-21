@@ -25,16 +25,21 @@
             <p class="file-guide">💡 가계부 JSON 파일을 이 화면 위에 끌어다 놓아도(Drag & Drop) 바로 불러올 수 있습니다.</p>
         </div>
 
-        <div class="card">
-            <select id="transactionType">
-                <option value="수입">수입 (+)</option>
-                <option value="소모">소모 (-)</option>
-            </select>
-            <select id="category">
-                <option value="메소">메소</option>
-                <option value="조각">조각</option>
-            </select>
-            <input type="number" id="amount" placeholder="수량 입력">
+        <div class="card insert-box-container">
+            <div class="insert-inputs">
+                <select id="transactionType">
+                    <option value="수입">수입 (+)</option>
+                    <option value="소모">소모 (-)</option>
+                </select>
+                <select id="category">
+                    <option value="메소">메소</option>
+                    <option value="조각">조각</option>
+                </select>
+                <div class="input-with-unit">
+                    <input type="number" id="amount" placeholder="수량 입력">
+                    <span id="amountUnit" class="amount-unit-text"></span>
+                </div>
+            </div>
             <button id="addBtn">기록 추가</button>
         </div>
 
