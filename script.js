@@ -1,3 +1,16 @@
+// ==========================================
+// [추가] GoatCounter 초경량/노쿠키 방문자 통계 분석 스크립트
+// ==========================================
+(function () {
+    const script = document.createElement('script');
+    script.async = true;
+    // GitHub Pages 도메인에서도 누락 없이 카운트되도록 vhost 지정을 돕는 속성입니다.
+    script.setAttribute('data-goatcounter', 'https://JJU0111.goatcounter.com/count');
+    script.src = '//gc.zgo.at/count.js';
+
+    (document.head || document.body).appendChild(script);
+})();
+
 let data = [];
 let fileHandle;
 let myChart;
@@ -369,7 +382,6 @@ function calculateTotalProfit() {
 // ==========================================
 const dropZone = document.getElementById('dropZone');
 
-// [핵심 보정] document 단위로 버블링되는 드래그 이벤트를 완전히 정지하여 안내 창 차단 버그 제거
 document.addEventListener('dragenter', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -385,13 +397,11 @@ document.addEventListener('dragover', (e) => {
 dropZone.addEventListener('dragleave', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // 외부 경계선 밖으로 진짜 나갔을 때만 가리기
     if (e.target === dropZone) {
         dropZone.style.display = 'none';
     }
 });
 
-// 파일 파싱 내부 안정화 코어 함수
 function readDroppedFile(file, isHandleMode = false) {
     const reader = new FileReader();
     reader.onload = function (event) {
@@ -422,7 +432,6 @@ dropZone.addEventListener('drop', async (e) => {
     e.stopPropagation();
     dropZone.style.display = 'none';
 
-    // 1순위: File System Access API 시도 (보안 팝업 대응 트라이캐치 구조)
     if (e.dataTransfer.items && e.dataTransfer.items[0]) {
         const item = e.dataTransfer.items[0];
         if (typeof item.getAsFileSystemHandle === 'function') {
@@ -435,7 +444,7 @@ dropZone.addEventListener('drop', async (e) => {
                     }
                     fileHandle = handle;
                     const file = await fileHandle.getFile();
-                    await setHandle('current_handle', fileHandle); // IDB에 바인딩 영구 저장
+                    await setHandle('current_handle', fileHandle);
 
                     readDroppedFile(file, true);
                     return;
@@ -446,7 +455,6 @@ dropZone.addEventListener('drop', async (e) => {
         }
     }
 
-    // 2순위: 깃허브 페이지 도메인 격리로 핸들러 오류 발생 시 실행되는 안전한 폴백 FileReader 모드
     const files = e.dataTransfer.files;
     if (files.length > 0) {
         const file = files[0];
