@@ -27,6 +27,7 @@
 
         <div class="card insert-box-container">
             <div class="insert-inputs">
+                <input type="date" id="recordDate" class="date-input">
                 <select id="transactionType">
                     <option value="수입">수입 (+)</option>
                     <option value="소모">소모 (-)</option>
@@ -52,7 +53,21 @@
         </div>
 
         <div class="card">
-            <h3>기록 목록</h3>
+            <div class="table-header-flex">
+                <h3>기록 목록</h3>
+                <div class="table-controls">
+                    <select id="tableFilter">
+                        <option value="전체">전체 보기</option>
+                        <option value="메소">메소만 보기</option>
+                        <option value="조각">조각만 보기</option>
+                    </select>
+                    <select id="tableSort">
+                        <option value="최신순">최신 날짜순</option>
+                        <option value="금액높은순">금액 높은순</option>
+                        <option value="금액낮은순">금액 낮은순</option>
+                    </select>
+                </div>
+            </div>
             <table id="recordTable">
                 <thead>
                     <tr>

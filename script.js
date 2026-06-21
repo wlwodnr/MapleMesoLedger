@@ -72,6 +72,9 @@ function updateAmountUnitDisplay() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+    const todayStr = new Date().toISOString().substring(0, 10);
+    document.getElementById('recordDate').value = todayStr;
+
     const savedData = localStorage.getItem('maple_ledger_data');
     if (savedData) {
         try {
@@ -86,6 +89,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('amount').addEventListener('input', updateAmountUnitDisplay);
     document.getElementById('category').addEventListener('change', updateAmountUnitDisplay);
+
+    // 필터 및 정렬 조작계 이벤트 연동
+    document.getElementById('tableFilter').addEventListener('change', renderTable);
+    document.getElementById('tableSort').addEventListener('change', renderTable);
 
     try {
         const handle = await getHandle('current_handle');
@@ -161,14 +168,17 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 });
 
 document.getElementById('addBtn').addEventListener('click', async () => {
+    const dateInput = document.getElementById('recordDate').value;
     const txType = document.getElementById('transactionType').value;
     const category = document.getElementById('category').value;
     const amount = document.getElementById('amount').value;
 
     if (!amount) return alert("수량을 입력하세요.");
 
+    const formattedDate = dateInput ? new Date(dateInput).toLocaleDateString() : new Date().toLocaleDateString();
+
     data.push({
-        date: new Date().toLocaleDateString(),
+        date: formattedDate,
         type: txType,
         category: category,
         amount: Number(amount)
@@ -334,7 +344,30 @@ function updateGraph() {
 }
 
 function renderTable() {
-    document.getElementById('recordBody').innerHTML = data.map((item, index) => {
+    const filterValue = document.getElementById('tableFilter').value;
+    const sortValue = document.getElementById('tableSort').value;
+
+    // 원본 백업 인덱스를 보존하면서 데이터 매핑
+    let processedData = data.map((item, originalIndex) => ({ ...item, originalIndex }));
+
+    // 1. 메소만 보기 / 조각만 보기 필터 처리
+    if (filterValue === '메소') {
+        processedData = processedData.filter(item => item.category === '메소');
+    } else if (filterValue === '조각') {
+        processedData = processedData.filter(item => item.category === '조각');
+    }
+
+    // 2. 정렬 조건 분기 처리 (최신순 / 금액 높은순 / 금액 낮은순)
+    if (sortValue === '최신순') {
+        processedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+    } else if (sortValue === '금액높은순') {
+        processedData.sort((a, b) => b.amount - a.amount);
+    } else if (sortValue === '금액낮은순') {
+        processedData.sort((a, b) => a.amount - b.amount);
+    }
+
+    document.getElementById('recordBody').innerHTML = processedData.map((item) => {
+        const index = item.originalIndex;
         const iconPath = item.category === '메소' ? 'IconImage/Meso.png' : 'IconImage/Pice of Erda.png';
         const imgTag = `<img src="${iconPath}" class="ledger-icon" alt="${item.category}">`;
         const isIncome = item.type !== '소모';

@@ -257,13 +257,20 @@ button.btn-cancel {
 .input-with-unit {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     flex: 1;
 }
 
 .input-with-unit input {
     margin-right: 0 !important;
-    width: 160px;
+    width: 180px;
+}
+
+.date-input {
+    padding: 9px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-family: inherit;
 }
 
 .amount-unit-text {
@@ -277,6 +284,29 @@ button.btn-cancel {
     margin-left: auto;
     padding: 10px 20px;
     white-space: nowrap;
+}
+
+/* 필터 조작계 배치용 레이아웃 상단 구조 */
+.table-header-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.table-header-flex h3 {
+    margin: 0;
+}
+
+.table-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.table-controls select {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
 }
 
 @media (max-width: 600px) {
@@ -295,5 +325,19 @@ button.btn-cancel {
     #addBtn {
         width: 100%;
         margin-left: 0;
+    }
+
+    .table-header-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .table-controls {
+        width: 100%;
+    }
+
+    .table-controls select {
+        flex: 1;
     }
 }
